@@ -4,11 +4,13 @@ import "./App.scss";
 import BasicGradient from "./BasicGradient";
 import BasicVectors from "./BasicVectors";
 import BasicUniforms from "./BasicUniforms";
+import BasicRadialColor from "./BasicRadialColor";
 
 var canvasDict = {
   BasicGradient,
   BasicVectors,
-  BasicUniforms
+  BasicUniforms,
+  BasicRadialColor
 };
 
 class App extends Component {

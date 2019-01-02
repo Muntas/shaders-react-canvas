@@ -5,24 +5,19 @@ import { Surface } from "gl-react-dom";
 
 import "react-input-range/lib/css/index.css";
 
-class BasicUniforms extends Component {
+class BasicRadialColor extends Component {
   constructor(props) {
     super(props);
     this.state = {
       bool_initialized: false,
       number_width: null,
       number_height: null,
-      shader: null,
-      number_mouseX: null,
-      number_mouseY: null,
-      number_elapsedTime: null,
-      number_timeIncrement: null
+      number_fromColor: null,
+      number_toColor: null,
+      shader: null
     };
-    this.timer = null;
-    this._event_mouseListener = this._event_mouseListener.bind(this);
-    this._action_change_timeIncrement = this._action_change_timeIncrement.bind(
-      this
-    );
+    this._action_change_fromColor = this._action_change_fromColor.bind(this);
+    this._action_change_toColor = this._action_change_toColor.bind(this);
   }
 
   _set_initialData(initialData, callback) {
@@ -32,10 +27,8 @@ class BasicUniforms extends Component {
         return {
           number_width: initialData.width,
           number_height: initialData.height,
-          number_mouseX: initialData.x,
-          number_mousY: initialData.y,
-          number_elapsedTime: initialData.elapsedTime,
-          number_timeIncrement: initialData.timeIncrement
+          number_fromColor: initialData.fromColor,
+          number_toColor: initialData.toColor
         };
       },
       () => {
@@ -64,23 +57,6 @@ class BasicUniforms extends Component {
     );
   }
 
-  _set_timeIncrement(number_timeIncrement, callback) {
-    console.log("CALLED: _set_timeIncrement");
-    this.setState(
-      () => {
-        return {
-          number_timeIncrement
-        };
-      },
-      () => {
-        console.log("FINISHED: _set_timeIncrement");
-        if (callback) {
-          callback();
-        }
-      }
-    );
-  }
-
   _set_shader(shader, callback) {
     console.log("CALLED: _set_shader");
     this.setState(
@@ -98,17 +74,16 @@ class BasicUniforms extends Component {
     );
   }
 
-  _set_mousePosition(mousePosition, callback) {
-    // console.log("CALLED: _set_mousePosition");
+  _set_fromColor(number_fromColor, callback) {
+    console.log("CALLED: _set_fromColor");
     this.setState(
       () => {
         return {
-          number_mouseX: mousePosition.x,
-          number_mouseY: mousePosition.y
+          number_fromColor
         };
       },
       () => {
-        // console.log("FINISHED: _set_mousePosition");
+        console.log("FINISHED: _set_fromColor");
         if (callback) {
           callback();
         }
@@ -116,24 +91,21 @@ class BasicUniforms extends Component {
     );
   }
 
-  _set_updates(callback) {
-    this.timer = setInterval(() => {
-      // console.log("CALLED: _set_updates");
-      this.setState(
-        prevState => {
-          return {
-            number_elapsedTime:
-              prevState.number_elapsedTime + this.state.number_timeIncrement
-          };
-        },
-        () => {
-          // console.log("FINISHED: _set_updates");
+  _set_toColor(number_toColor, callback) {
+    console.log("CALLED: _set_toColor");
+    this.setState(
+      () => {
+        return {
+          number_toColor
+        };
+      },
+      () => {
+        console.log("FINISHED: _set_toColor");
+        if (callback) {
+          callback();
         }
-      );
-    }, 30);
-    if (callback) {
-      callback();
-    }
+      }
+    );
   }
 
   /////////////////////////////////
@@ -144,15 +116,23 @@ class BasicUniforms extends Component {
         frag: GLSL/* GLSL */ `
         precision highp float;
         
-        uniform float u_time;
-        uniform float u_width;
-        uniform float u_height;
-        uniform float u_mouseX;
-        uniform float u_mouseY;
+        uniform float u_fromColor;
+        uniform float u_toColor;
         varying vec2 uv;
         
         void main() {
-            gl_FragColor = vec4(abs(sin(u_time)),abs(uv.x-u_mouseX/u_width),abs(uv.y-u_mouseY/u_height),1.0);
+          float PI = 3.141592653589793;
+          vec2 center = vec2(0.5,0.5);
+          float distance = distance(uv,center);
+          if (distance > 0.5) {
+            gl_FragColor = vec4(1.0,1.0,1.0,0.0);
+          } else {
+            gl_FragColor = mix(
+              vec4(abs(sin(u_fromColor)),abs(sin(u_fromColor+PI/4.0)),abs(sin(u_fromColor+PI/2.0)),1.0),
+              vec4(abs(sin(u_toColor)),abs(sin(u_toColor+PI/4.0)),abs(sin(u_toColor+PI/2.0)),1.0),
+              distance
+            );
+          };
         }`
       }
     });
@@ -160,19 +140,12 @@ class BasicUniforms extends Component {
 
   /////////////////////////////////
 
-  _event_mouseListener(event) {
-    var mousePosition = {
-      x: event.clientX,
-      y: event.clientY
-    };
-    this._set_mousePosition(mousePosition);
+  _action_change_fromColor(fromColor) {
+    this._set_fromColor(fromColor);
   }
 
-  _action_change_timeIncrement(timeIncrement) {
-    clearInterval(this.timer);
-    this._set_timeIncrement(timeIncrement, () => {
-      this._set_updates();
-    });
+  _action_change_toColor(toColor) {
+    this._set_toColor(toColor);
   }
 
   /////////////////////////////////
@@ -181,22 +154,14 @@ class BasicUniforms extends Component {
     var initialData = {
       width: 1000,
       height: 1000,
-      x: 0,
-      y: 0,
-      elapsedTime: 0,
-      timeIncrement: 0.1
+      fromColor: 0,
+      toColor: 2 * Math.PI
     };
     this._set_initialData(initialData, () => {
       this._set_shader(this._create_shader(), () => {
-        this._set_updates(() => {
-          this._set_initialized(true);
-        });
+        this._set_initialized(true);
       });
     });
-  }
-
-  componentWillUnmount() {
-    clearInterval(this.timer);
   }
 
   /////////////////////////////////
@@ -209,30 +174,33 @@ class BasicUniforms extends Component {
           <p onClick={this.props._action_closeCanvas} className="button">
             close
           </p>
+          <p>From color:</p>
           <InputRange
             step={0.01}
-            maxValue={1}
+            maxValue={2 * Math.PI}
             minValue={0}
-            value={this.state.number_timeIncrement}
-            onChange={timeIncrement =>
-              this._action_change_timeIncrement(timeIncrement)
-            }
+            value={this.state.number_fromColor}
+            onChange={fromColor => this._action_change_fromColor(fromColor)}
+          />
+          <p>To color:</p>
+          <InputRange
+            step={0.01}
+            maxValue={2 * Math.PI}
+            minValue={0}
+            value={this.state.number_toColor}
+            onChange={toColor => this._action_change_toColor(toColor)}
           />
         </div>
         {this.state.bool_initialized ? (
           <Surface
             width={this.state.number_width}
             height={this.state.number_height}
-            onMouseMove={this._event_mouseListener}
           >
             <Node
               shader={this.state.shader.shader}
               uniforms={{
-                u_time: this.state.number_elapsedTime,
-                u_width: this.state.number_width,
-                u_height: this.state.number_height,
-                u_mouseX: this.state.number_mouseX,
-                u_mouseY: this.state.number_mouseY
+                u_fromColor: this.state.number_fromColor,
+                u_toColor: this.state.number_toColor
               }}
             />
           </Surface>
@@ -244,4 +212,4 @@ class BasicUniforms extends Component {
   }
 }
 
-export default BasicUniforms;
+export default BasicRadialColor;
